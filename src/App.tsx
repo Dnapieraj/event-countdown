@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-type Target = 'christmas' | 'newyear' | 'easter' | 'valentines' | 'independence' | 'custom'
+type Target = 'christmas' | 'newyear' | 'easter' | 'valentines' | 'independence' | 'custom' | 'summer'
 
 interface TimeLeft {
 	days: number
@@ -37,6 +37,8 @@ const getTargetDate = (now: Date, target: Target, customDate?: string, customTim
 			? new Date(y, 1, 14)
 			: target === 'independence'
 			? new Date(y, 10, 11)
+			: target === 'summer'
+			? new Date(y, 6, 1)
 			: customDate
 			? (() => {
 					const [year, month, day] = customDate.split('-').map(Number)
@@ -160,6 +162,9 @@ function App() {
 							<button className="modal-btn" onClick={() => handleSelectEvent('valentines')}>
 								💘 Walentynki
 							</button>
+							<button className="modal-btn" onClick={() => handleSelectEvent('summer')}>
+								☀️ Wakacje
+							</button>
 							<button className="modal-btn" onClick={() => handleSelectEvent('independence')}>
 								🇵🇱 Dzień Niepodległości
 							</button>
@@ -262,6 +267,8 @@ function App() {
 						? '✨ Odliczanie do Wielkanocy ✨'
 						: target === 'valentines'
 						? '💘 Odliczanie do Walentynek 💘'
+						: target === 'summer'
+						? '☀️ Odliczanie do Wakacji ☀️'
 						: '🦅 Odliczanie do Dnia Niepodległości 🦅'}
 				</h1>
 
@@ -297,9 +304,11 @@ function App() {
 											: target === 'easter'
 											? 'Wielkanocy'
 											: target === 'valentines'
-											? 'Walentynkowej'
+											? 'Walentynek'
 											: target === 'christmas'
 											? 'Świąt Bożego Narodzenia'
+											: target === 'summer'
+											? 'Wakacji'
 											: 'Dnia Niepodległości'
 								  }`}{' '}
 							<span className="bold">{targetDateYear}r.</span>
@@ -386,6 +395,16 @@ function getTargetConfig(target: Target) {
 				fireworks: false,
 				lights: false,
 				centerIcon: '✨',
+			}
+		case 'summer':
+			return {
+				dark: false,
+				showTrees: false,
+				showSnow: false,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '☀️',
 			}
 		default:
 			return {
