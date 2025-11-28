@@ -118,6 +118,9 @@ function App() {
 
 	const cfg = getTargetConfig(target)
 
+	const now = new Date()
+	const targetDateYear = getTargetDate(now, target, customDate, customTime).getFullYear()
+
 	const handleSelectEvent = (selectedTarget: Target) => {
 		setTarget(selectedTarget)
 		if (selectedTarget !== 'custom') {
@@ -299,7 +302,7 @@ function App() {
 											? 'Świąt Bożego Narodzenia'
 											: 'Dnia Niepodległości'
 								  }`}{' '}
-							<span className="bold">{new Date().getFullYear()}r.</span>
+							<span className="bold">{targetDateYear}r.</span>
 						</p>
 						{cfg.showSnowman && <div className="snowman">⛄</div>}
 					</>
