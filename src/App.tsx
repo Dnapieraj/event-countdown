@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-type Target = 'christmas' | 'newyear' | 'easter' | 'valentines' | 'independence' | 'custom' | 'summer'
+type Target = 'christmas' | 'newyear' | 'easter' | 'valentines' | 'custom' | 'summer' | 'schoolyear'
 
 interface TimeLeft {
 	days: number
 	hours: number
 	minutes: number
 	seconds: number
+	year?: number
 }
 
 const starPositions = Array.from({ length: 30 }, () => ({
@@ -35,10 +36,10 @@ const getTargetDate = (now: Date, target: Target, customDate?: string, customTim
 			? computeEaster(y)
 			: target === 'valentines'
 			? new Date(y, 1, 14)
-			: target === 'independence'
-			? new Date(y, 10, 11)
 			: target === 'summer'
 			? new Date(y, 6, 1)
+			: target === 'schoolyear'
+			? new Date(y, 8, 1)
 			: customDate
 			? (() => {
 					const [year, month, day] = customDate.split('-').map(Number)
@@ -87,16 +88,52 @@ function App() {
 	const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 	const [isChristmas, setIsChristmas] = useState(false)
 	const [showModal, setShowModal] = useState(true)
+	const [userTheme, setUserTheme] = useState<'light' | 'dark'>('dark')
+	const [isEventToday, setIsEventToday] = useState(false)
+	const [nextTarget, setNextTarget] = useState<Target | null>(null)
 
 	useEffect(() => {
+		const checkIfEventIsToday = (now: Date, eventTarget: Target): boolean => {
+			const month = now.getMonth()
+			const day = now.getDate()
+			if (eventTarget === 'christmas') return month === 11 && day === 25
+			if (eventTarget === 'newyear') return month === 11 && day === 31
+			if (eventTarget === 'valentines') return month === 1 && day === 14
+			if (eventTarget === 'summer') {
+				// Wakacje trwają od 1 lipca do 31 sierpnia
+				return (month === 6 && day >= 1) || month === 7 || (month === 8 && day <= 31)
+			}
+			if (eventTarget === 'schoolyear') return month === 8 && day === 1
+			return false
+		}
+
 		const calculateTimeLeft = () => {
 			const now = new Date()
-			const targetDate = getTargetDate(now, target, customDate, customTime)
+			let currentTarget = target
+			let nextEvent: Target | null = null
+
+			// Sprawdź czy dziś są wakacje - jeśli tak, odliczaj do roku szkolnego
+			if (target === 'summer' && checkIfEventIsToday(now, 'summer')) {
+				currentTarget = 'schoolyear'
+				nextEvent = 'schoolyear'
+			}
+
+			const targetDate = getTargetDate(now, currentTarget, customDate, customTime)
 			const diff = targetDate.getTime() - now.getTime()
 			const isTodayChristmas = now.getMonth() === 11 && now.getDate() === 25
+			const eventIsToday = checkIfEventIsToday(now, target)
 
 			if (diff <= 0) {
-				return { days: 0, hours: 0, minutes: 0, seconds: 0, isChristmas: isTodayChristmas }
+				return {
+					days: 0,
+					hours: 0,
+					minutes: 0,
+					seconds: 0,
+					isChristmas: isTodayChristmas,
+					eventIsToday,
+					nextEvent,
+					year: targetDate.getFullYear(),
+				}
 			}
 			return {
 				days: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -104,12 +141,17 @@ function App() {
 				minutes: Math.floor((diff / 1000 / 60) % 60),
 				seconds: Math.floor((diff / 1000) % 60),
 				isChristmas: isTodayChristmas,
+				eventIsToday,
+				nextEvent,
+				year: targetDate.getFullYear(),
 			}
 		}
 		const updateTime = () => {
 			const result = calculateTimeLeft()
 			setTimeLeft(result)
 			setIsChristmas(result.isChristmas)
+			setIsEventToday(result.eventIsToday || false)
+			setNextTarget(result.nextEvent || null)
 		}
 		updateTime()
 		const timer = setInterval(updateTime, 1000)
@@ -118,10 +160,12 @@ function App() {
 
 	const formatNumber = (n: number) => String(n).padStart(2, '0')
 
-	const cfg = getTargetConfig(target)
+	const cfg = getTargetConfig(target, userTheme)
+	const targetDateYear = timeLeft.year || new Date().getFullYear()
 
-	const now = new Date()
-	const targetDateYear = getTargetDate(now, target, customDate, customTime).getFullYear()
+	const toggleTheme = () => {
+		setUserTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+	}
 
 	const handleSelectEvent = (selectedTarget: Target) => {
 		setTarget(selectedTarget)
@@ -165,9 +209,6 @@ function App() {
 							<button className="modal-btn" onClick={() => handleSelectEvent('summer')}>
 								☀️ Wakacje
 							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('independence')}>
-								🇵🇱 Dzień Niepodległości
-							</button>
 							<button className="modal-btn" onClick={() => handleSelectEvent('custom')}>
 								✨ Własny cel
 							</button>
@@ -208,14 +249,24 @@ function App() {
 				⚙️
 			</button>
 
-			<div className="moon">🌙</div>
-			<div className="stars">
-				{starPositions.map((star, i) => (
-					<div key={i} className="star" style={{ top: star.top, left: star.left, fontSize: star.size }}>
-						⭐
+			<button className="theme-toggle-btn" onClick={toggleTheme} title="Zmień motyw">
+				{userTheme === 'dark' ? '🌙' : '☀️'}
+			</button>
+
+			{userTheme === 'dark' ? (
+				<>
+					<div className="moon">🌙</div>
+					<div className="stars">
+						{starPositions.map((star, i) => (
+							<div key={i} className="star" style={{ top: star.top, left: star.left, fontSize: star.size }}>
+								⭐
+							</div>
+						))}
 					</div>
-				))}
-			</div>
+				</>
+			) : (
+				<div className="sun">☀️</div>
+			)}
 
 			{cfg.showTrees && (
 				<>
@@ -262,14 +313,26 @@ function App() {
 							? '🎅 Wesołych Świąt! 🎄'
 							: '✨ Odliczanie do Świąt Bożego Narodzenia ✨'
 						: target === 'newyear'
-						? '🎆 Odliczanie do Sylwestra 🎇'
+						? isEventToday
+							? '🎉 Szczęśliwego Nowego Roku! 🎆'
+							: '🎆 Odliczanie do Sylwestra 🎇'
 						: target === 'easter'
-						? '✨ Odliczanie do Wielkanocy ✨'
+						? isEventToday
+							? '🐰 Wesołych Świąt Wielkanocnych! 🥚'
+							: '✨ Odliczanie do Wielkanocy ✨'
 						: target === 'valentines'
-						? '💘 Odliczanie do Walentynek 💘'
+						? isEventToday
+							? '💖 Szczęśliwych Walentynek! 💝'
+							: '💘 Odliczanie do Walentynek 💘'
 						: target === 'summer'
-						? '☀️ Odliczanie do Wakacji ☀️'
-						: '🦅 Odliczanie do Dnia Niepodległości 🦅'}
+						? isEventToday && nextTarget === 'schoolyear'
+							? '🏖️ Trwają Wakacje! ☀️'
+							: isEventToday
+							? '🎉 Zaczęły się Wakacje! 🏖️'
+							: '☀️ Odliczanie do Wakacji 🏖️'
+						: target === 'schoolyear'
+						? '📚 Odliczanie do Roku Szkolnego 🎒'
+						: '✨ Odliczanie ✨'}
 				</h1>
 
 				{!isChristmas || target !== 'christmas' ? (
@@ -298,6 +361,8 @@ function App() {
 						<p className="subtitle">
 							{target === 'custom'
 								? `do "${customTitle || 'Moje odliczanie'}"`
+								: isEventToday && nextTarget === 'schoolyear'
+								? `do końca wakacji (Rok Szkolny ${targetDateYear})`
 								: `do ${
 										target === 'newyear'
 											? 'Sylwestra'
@@ -309,9 +374,9 @@ function App() {
 											? 'Świąt Bożego Narodzenia'
 											: target === 'summer'
 											? 'Wakacji'
-											: 'Dnia Niepodległości'
+											: 'Roku Szkolnego'
 								  }`}{' '}
-							<span className="bold">{targetDateYear}r.</span>
+							{!isEventToday && <span className="bold">{targetDateYear}r.</span>}
 						</p>
 						{cfg.showSnowman && <div className="snowman">⛄</div>}
 					</>
@@ -334,11 +399,11 @@ function App() {
 	)
 }
 
-function getTargetConfig(target: Target) {
+function getTargetConfig(target: Target, userTheme: 'light' | 'dark' = 'dark') {
 	switch (target) {
 		case 'christmas':
 			return {
-				dark: false,
+				dark: userTheme === 'dark',
 				showTrees: true,
 				showSnow: true,
 				showSnowman: true,
@@ -348,7 +413,7 @@ function getTargetConfig(target: Target) {
 			}
 		case 'newyear':
 			return {
-				dark: true,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
@@ -358,7 +423,7 @@ function getTargetConfig(target: Target) {
 			}
 		case 'easter':
 			return {
-				dark: false,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
@@ -368,7 +433,7 @@ function getTargetConfig(target: Target) {
 			}
 		case 'valentines':
 			return {
-				dark: false,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
@@ -376,19 +441,9 @@ function getTargetConfig(target: Target) {
 				lights: false,
 				centerIcon: '💘💝',
 			}
-		case 'independence':
-			return {
-				dark: false,
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '🦅',
-			}
 		case 'custom':
 			return {
-				dark: true,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
@@ -398,7 +453,7 @@ function getTargetConfig(target: Target) {
 			}
 		case 'summer':
 			return {
-				dark: false,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
@@ -406,9 +461,19 @@ function getTargetConfig(target: Target) {
 				lights: false,
 				centerIcon: '☀️',
 			}
+		case 'schoolyear':
+			return {
+				dark: userTheme === 'dark',
+				showTrees: false,
+				showSnow: false,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '📚',
+			}
 		default:
 			return {
-				dark: false,
+				dark: userTheme === 'dark',
 				showTrees: false,
 				showSnow: false,
 				showSnowman: false,
