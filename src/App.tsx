@@ -1,120 +1,17 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-
-type Target =
-	| 'christmas'
-	| 'newyear'
-	| 'easter'
-	| 'valentines'
-	| 'custom'
-	| 'summer'
-	| 'schoolyear'
-	| 'winterbreak'
-	| 'winterholidays'
-	| 'springbreak'
-	| 'endofyear'
-
-type Voivodeship = 'group1' | 'group2' | 'group3' | 'group4'
-
-interface TimeLeft {
-	days: number
-	hours: number
-	minutes: number
-	seconds: number
-	year?: number
-}
-
-const starPositions = Array.from({ length: 30 }, () => ({
-	top: `${Math.random() * 50}%`,
-	left: `${Math.random() * 100}%`,
-	size: `${0.3 + Math.random() * 0.4}rem`,
-}))
-
-const snowflakes = Array.from({ length: 150 }, (_, i) => ({
-	id: i,
-	left: Math.random() * 100,
-	delay: -(Math.random() * 20),
-	duration: 10 + Math.random() * 15,
-	size: 3 + Math.random() * 6,
-}))
-
-const getTargetDate = (
-	now: Date,
-	target: Target,
-	customDate?: string,
-	customTime?: string,
-	voivodeship?: Voivodeship
-) => {
-	const y = now.getFullYear()
-	const date =
-		target === 'christmas'
-			? new Date(y, 11, 25)
-			: target === 'newyear'
-			? new Date(y, 11, 31, 23, 59, 59)
-			: target === 'easter'
-			? computeEaster(y)
-			: target === 'valentines'
-			? new Date(y, 1, 14)
-			: target === 'summer'
-			? new Date(y, 6, 1)
-			: target === 'schoolyear'
-			? new Date(y, 8, 1)
-			: target === 'winterbreak'
-			? new Date(y, 11, 22)
-			: target === 'springbreak'
-			? new Date(y, 3, 2)
-			: target === 'endofyear'
-			? new Date(y, 5, 26)
-			: target === 'winterholidays'
-			? (() => {
-					// Ferie zimowe 2026 - różne daty dla grup
-					const dates: Record<Voivodeship, Date> = {
-						group1: new Date(y, 0, 19), // 19.01 - 1.02
-						group2: new Date(y, 0, 26), // 26.01 - 8.02
-						group3: new Date(y, 1, 2), // 2.02 - 15.02
-						group4: new Date(y, 1, 9), // 9.02 - 22.02
-					}
-					return dates[voivodeship || 'group1']
-			  })()
-			: customDate
-			? (() => {
-					const [year, month, day] = customDate.split('-').map(Number)
-					if (customTime) {
-						const [hours, minutes] = customTime.split(':').map(Number)
-						return new Date(year, month - 1, day, hours, minutes, 0)
-					}
-					return new Date(year, month - 1, day, 23, 59, 59)
-			  })()
-			: new Date(y, 11, 25)
-	return now > date
-		? new Date(
-				date.getFullYear() + 1,
-				date.getMonth(),
-				date.getDate(),
-				date.getHours(),
-				date.getMinutes(),
-				date.getSeconds()
-		  )
-		: date
-}
-
-function computeEaster(year: number) {
-	const a = year % 19
-	const b = Math.floor(year / 100)
-	const c = year % 100
-	const d = Math.floor(b / 4)
-	const e = b % 4
-	const f = Math.floor((b + 8) / 25)
-	const g = Math.floor((b - f + 1) / 3)
-	const h = (19 * a + b - d - g + 15) % 30
-	const i = Math.floor(c / 4)
-	const k = c % 4
-	const l = (32 + 2 * e + 2 * i - h - k) % 7
-	const m = Math.floor((a + 11 * h + 22 * l) / 451)
-	const month = Math.floor((h + l - 7 * m + 114) / 31) - 1
-	const day = ((h + l - 7 * m + 114) % 31) + 1
-	return new Date(year, month, day)
-}
+import type { Target, TimeLeft, Voivodeship } from './types'
+import { getTargetDate, checkIfEventIsToday } from './utils/dateUtils'
+import { getTargetConfig } from './config/targetConfig'
+import { EventModal } from './components/EventModal'
+import { VoivodeshipMenu } from './components/VoivodeshipMenu'
+import { BackgroundElements } from './components/BackgroundElements'
+import { SnowEffect } from './components/SnowEffect'
+import { Fireworks } from './components/Fireworks'
+import { Lights } from './components/Lights'
+import { TimerDisplay } from './components/TimerDisplay'
+import { EventTitle } from './components/EventTitle'
+import { EventSubtitle } from './components/EventSubtitle'
 
 function App() {
 	const [target, setTarget] = useState<Target>('christmas')
@@ -131,36 +28,11 @@ function App() {
 	const [showVoivodeshipMenu, setShowVoivodeshipMenu] = useState(false)
 
 	useEffect(() => {
-		const checkIfEventIsToday = (now: Date, eventTarget: Target): boolean => {
-			const month = now.getMonth()
-			const day = now.getDate()
-			if (eventTarget === 'christmas') return month === 11 && day === 25
-			if (eventTarget === 'newyear') return month === 11 && day === 31
-			if (eventTarget === 'valentines') return month === 1 && day === 14
-			if (eventTarget === 'summer') {
-				// Wakacje trwają od 1 lipca do 31 sierpnia
-				return (month === 6 && day >= 1) || month === 7 || (month === 8 && day <= 31)
-			}
-			if (eventTarget === 'schoolyear') return month === 8 && day === 1
-			if (eventTarget === 'winterbreak') return month === 11 && day >= 22 && day <= 31
-			if (eventTarget === 'springbreak') return month === 3 && day >= 2 && day <= 7
-			if (eventTarget === 'endofyear') return month === 5 && day === 26
-			if (eventTarget === 'winterholidays') {
-				const group1 = month === 0 && day >= 19 && day <= 31 && (month === 0 || (month === 1 && day <= 1))
-				const group2 = month === 0 && day >= 26 && day <= 31 && (month === 0 || (month === 1 && day <= 8))
-				const group3 = month === 1 && day >= 2 && day <= 15
-				const group4 = month === 1 && day >= 9 && day <= 22
-				return group1 || group2 || group3 || group4
-			}
-			return false
-		}
-
 		const calculateTimeLeft = () => {
 			const now = new Date()
 			let currentTarget = target
 			let nextEvent: Target | null = null
 
-			// Sprawdź czy dziś są wakacje - jeśli tak, odliczaj do roku szkolnego
 			if (target === 'summer' && checkIfEventIsToday(now, 'summer')) {
 				currentTarget = 'schoolyear'
 				nextEvent = 'schoolyear'
@@ -194,6 +66,7 @@ function App() {
 				year: targetDate.getFullYear(),
 			}
 		}
+
 		const updateTime = () => {
 			const result = calculateTimeLeft()
 			setTimeLeft(result)
@@ -201,12 +74,11 @@ function App() {
 			setIsEventToday(result.eventIsToday || false)
 			setNextTarget(result.nextEvent || null)
 		}
+
 		updateTime()
 		const timer = setInterval(updateTime, 1000)
 		return () => clearInterval(timer)
 	}, [target, customDate, customTime, selectedVoivodeship])
-
-	const formatNumber = (n: number) => String(n).padStart(2, '0')
 
 	const cfg = getTargetConfig(target, userTheme)
 	const targetDateYear = timeLeft.year || new Date().getFullYear()
@@ -222,6 +94,12 @@ function App() {
 		}
 	}
 
+	const handleSelectVoivodeship = (selectedTarget: Target, voivodeship: Voivodeship) => {
+		setTarget(selectedTarget)
+		setSelectedVoivodeship(voivodeship)
+		setShowModal(false)
+	}
+
 	const handleCustomSubmit = () => {
 		if (customDate) {
 			setShowModal(false)
@@ -230,179 +108,27 @@ function App() {
 
 	return (
 		<div className={`app ${cfg.dark ? 'theme-dark' : 'theme-normal'}`}>
-			{showModal && (
-				<div className="modal-overlay">
-					<div className="modal-content">
-						<h2 className="modal-title">✨ Do czego chcesz odliczać? ✨</h2>
-						<div className="modal-options">
-							<button className="modal-btn" onClick={() => handleSelectEvent('christmas')}>
-								🎄 Boże Narodzenie
-							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('newyear')}>
-								🎆 Sylwester
-							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('easter')}>
-								🥚 Wielkanoc
-							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('valentines')}>
-								💘 Walentynki
-							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('summer')}>
-								☀️ Wakacje
-							</button>
-							<button className="modal-btn" onClick={() => setShowVoivodeshipMenu(!showVoivodeshipMenu)}>
-								❄️ Ferie Szkolne
-							</button>
-							<button className="modal-btn" onClick={() => handleSelectEvent('custom')}>
-								✨ Własny cel
-							</button>
-						</div>
+			<EventModal
+				showModal={showModal}
+				target={target}
+				customDate={customDate}
+				customTime={customTime}
+				customTitle={customTitle}
+				showVoivodeshipMenu={showVoivodeshipMenu}
+				onSelectEvent={handleSelectEvent}
+				onCustomDateChange={setCustomDate}
+				onCustomTimeChange={setCustomTime}
+				onCustomTitleChange={setCustomTitle}
+				onCustomSubmit={handleCustomSubmit}
+				onToggleVoivodeshipMenu={() => setShowVoivodeshipMenu(!showVoivodeshipMenu)}
+			/>
 
-						{target === 'custom' && (
-							<div className="modal-custom">
-								<input
-									type="date"
-									value={customDate}
-									onChange={e => setCustomDate(e.target.value)}
-									className="modal-input"
-									placeholder="Data"
-								/>
-								<input
-									type="time"
-									value={customTime}
-									onChange={e => setCustomTime(e.target.value)}
-									className="modal-input"
-									placeholder="Godzina (opcjonalne)"
-								/>
-								<input
-									type="text"
-									value={customTitle}
-									onChange={e => setCustomTitle(e.target.value)}
-									className="modal-input"
-									placeholder="Tytuł odliczania"
-								/>
-								<button className="modal-btn-confirm" onClick={handleCustomSubmit}>
-									Zatwierdź
-								</button>
-							</div>
-						)}
-					</div>
-				</div>
-			)}
-
-			{showVoivodeshipMenu && (
-				<div className="voivodeship-menu">
-					<div className="voivodeship-header">
-						<h3 className="voivodeship-title">📅 Przerwy Szkolne</h3>
-						<button className="close-menu-btn" onClick={() => setShowVoivodeshipMenu(false)}>
-							✕
-						</button>
-					</div>
-					<div className="voivodeship-options">
-						<div className="breaks-section">
-							<h4 className="section-title">❄️ Zimowe Przerwy</h4>
-							<button
-								className="voivodeship-btn break-btn"
-								onClick={() => {
-									handleSelectEvent('winterbreak')
-									setShowVoivodeshipMenu(false)
-								}}>
-								<span className="btn-label">Zimowa Przerwa Świąteczna</span>
-								<span className="btn-date">22-31 grudnia 2025</span>
-							</button>
-
-							<div className="holidays-subsection">
-								<h5 className="subsection-title">PRZERWY ZIMOWE 2026</h5>
-								<button
-									className="voivodeship-btn group-btn group-1"
-									onClick={() => {
-										setTarget('winterholidays')
-										setSelectedVoivodeship('group1')
-										setShowVoivodeshipMenu(false)
-										setShowModal(false)
-									}}>
-									<span className="group-number">Grupa 1</span>
-									<span className="group-info">
-										Kujawsko-Pomorskie, Lubuskie, Małopolskie, Świętokrzyskie, Wielkopolskie
-									</span>
-									<span className="group-date">19.01 - 1.02.2026</span>
-								</button>
-								<button
-									className="voivodeship-btn group-btn group-2"
-									onClick={() => {
-										setTarget('winterholidays')
-										setSelectedVoivodeship('group2')
-										setShowVoivodeshipMenu(false)
-										setShowModal(false)
-									}}>
-									<span className="group-number">Grupa 2</span>
-									<span className="group-info">Podlaskie, Warmińsko-Mazurskie</span>
-									<span className="group-date">26.01 - 8.02.2026</span>
-								</button>
-								<button
-									className="voivodeship-btn group-btn group-3"
-									onClick={() => {
-										setTarget('winterholidays')
-										setSelectedVoivodeship('group3')
-										setShowVoivodeshipMenu(false)
-										setShowModal(false)
-									}}>
-									<span className="group-number">Grupa 3</span>
-									<span className="group-info">Dolnośląskie, Mazowieckie, Opolskie, Zachodniopomorskie</span>
-									<span className="group-date">2.02 - 15.02.2026</span>
-								</button>
-								<button
-									className="voivodeship-btn group-btn group-4"
-									onClick={() => {
-										setTarget('winterholidays')
-										setSelectedVoivodeship('group4')
-										setShowVoivodeshipMenu(false)
-										setShowModal(false)
-									}}>
-									<span className="group-number">Grupa 4</span>
-									<span className="group-info">Lubelskie, Łódzkie, Podkarpackie, Pomorskie, Śląskie</span>
-									<span className="group-date">9.02 - 22.02.2026</span>
-								</button>
-							</div>
-						</div>
-
-						<div className="breaks-section">
-							<h4 className="section-title">🌸 Wiosenne Przerwy</h4>
-							<button
-								className="voivodeship-btn break-btn"
-								onClick={() => {
-									handleSelectEvent('springbreak')
-									setShowVoivodeshipMenu(false)
-								}}>
-								<span className="btn-label">Wiosenna Przerwa Świąteczna</span>
-								<span className="btn-date">2-7 kwietnia 2026</span>
-							</button>
-						</div>
-
-						<div className="breaks-section">
-							<h4 className="section-title">📚 Rok Szkolny</h4>
-							<button
-								className="voivodeship-btn break-btn"
-								onClick={() => {
-									handleSelectEvent('endofyear')
-									setShowVoivodeshipMenu(false)
-								}}>
-								<span className="btn-label">Koniec Roku Szkolnego</span>
-								<span className="btn-date">26 czerwca 2026</span>
-							</button>
-							<button
-								className="voivodeship-btn break-btn"
-								onClick={() => {
-									handleSelectEvent('summer')
-									setShowVoivodeshipMenu(false)
-								}}>
-								<span className="btn-label">Koniec Wakacji Letnich</span>
-								<span className="btn-date">1 września 2026</span>
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
+			<VoivodeshipMenu
+				showMenu={showVoivodeshipMenu}
+				onClose={() => setShowVoivodeshipMenu(false)}
+				onSelectEvent={handleSelectEvent}
+				onSelectVoivodeship={handleSelectVoivodeship}
+			/>
 
 			<button className="change-event-btn" onClick={() => setShowModal(true)} title="Zmień wydarzenie">
 				⚙️
@@ -412,165 +138,34 @@ function App() {
 				{userTheme === 'dark' ? '🌙' : '☀️'}
 			</button>
 
-			{userTheme === 'dark' ? (
-				<>
-					<div className="moon">🌙</div>
-					<div className="stars">
-						{starPositions.map((star, i) => (
-							<div key={i} className="star" style={{ top: star.top, left: star.left, fontSize: star.size }}>
-								⭐
-							</div>
-						))}
-					</div>
-				</>
-			) : (
-				<div className="sun">☀️</div>
-			)}
+			<BackgroundElements userTheme={userTheme} showTrees={cfg.showTrees} showSnow={cfg.showSnow} />
 
-			{cfg.showTrees && (
-				<>
-					<div className="background-tree left-tree">🎄</div>
-					<div className="background-tree right-tree">🎄</div>
-				</>
-			)}
-
-			{cfg.showSnow && <div className="snow-ground"></div>}
-			{cfg.showSnow && (
-				<div className="snow-container">
-					{snowflakes.map(flake => (
-						<div
-							key={flake.id}
-							className="snowflake"
-							style={{
-								left: `${flake.left}%`,
-								animationDelay: `${flake.delay}s`,
-								animationDuration: `${flake.duration}s`,
-								width: `${flake.size}px`,
-								height: `${flake.size}px`,
-							}}>
-							❄
-						</div>
-					))}
-				</div>
-			)}
-
-			{cfg.fireworks && (
-				<div className="fireworks">
-					{Array.from({ length: 6 }, (_, i) => (
-						<div key={i} className={`burst burst-${i}`} />
-					))}
-				</div>
-			)}
+			{cfg.showSnow && <SnowEffect />}
+			{cfg.fireworks && <Fireworks />}
 
 			<div className="content">
 				{cfg.centerIcon && <div className="christmas-tree">{cfg.centerIcon}</div>}
-				<h1 className="title">
-					{target === 'custom'
-						? customTitle || '✨ Moje odliczanie ✨'
-						: target === 'christmas'
-						? isChristmas
-							? '🎅 Wesołych Świąt! 🎄'
-							: '✨ Odliczanie do Świąt Bożego Narodzenia ✨'
-						: target === 'newyear'
-						? isEventToday
-							? '🎉 Szczęśliwego Nowego Roku! 🎆'
-							: '🎆 Odliczanie do Sylwestra 🎇'
-						: target === 'easter'
-						? isEventToday
-							? '🐰 Wesołych Świąt Wielkanocnych! 🥚'
-							: '✨ Odliczanie do Wielkanocy ✨'
-						: target === 'valentines'
-						? isEventToday
-							? '💖 Szczęśliwych Walentynek! 💝'
-							: '💘 Odliczanie do Walentynek 💘'
-						: target === 'summer'
-						? isEventToday && nextTarget === 'schoolyear'
-							? '🏖️ Trwają Wakacje! ☀️'
-							: isEventToday
-							? '🎉 Zaczęły się Wakacje! 🏖️'
-							: '☀️ Odliczanie do Wakacji 🏖️'
-						: target === 'schoolyear'
-						? '📚 Odliczanie do Roku Szkolnego 🎒'
-						: target === 'winterbreak'
-						? '❄️ Odliczanie do Zimowej Przerwy Świątecznej ❄️'
-						: target === 'winterholidays'
-						? `⛷️ Odliczanie do Ferii Zimowych Grupa ${
-								selectedVoivodeship === 'group1'
-									? '1'
-									: selectedVoivodeship === 'group2'
-									? '2'
-									: selectedVoivodeship === 'group3'
-									? '3'
-									: '4'
-						  } ⛷️`
-						: target === 'springbreak'
-						? '🌸 Odliczanie do Wiosennej Przerwy Świątecznej 🌸'
-						: target === 'endofyear'
-						? '📚 Odliczanie do Końca Roku Szkolnego 📚'
-						: '✨ Odliczanie ✨'}
-				</h1>
+
+				<EventTitle
+					target={target}
+					customTitle={customTitle}
+					isChristmas={isChristmas}
+					isEventToday={isEventToday}
+					nextTarget={nextTarget}
+					selectedVoivodeship={selectedVoivodeship}
+				/>
 
 				{!isChristmas || target !== 'christmas' ? (
 					<>
-						<div className="timer-grid">
-							<div className="timer-box">
-								<div className="timer-number">{formatNumber(timeLeft.days)}</div>
-								<div className="timer-label">Dni</div>
-							</div>
-							<div className="timer-separator">:</div>
-							<div className="timer-box">
-								<div className="timer-number">{formatNumber(timeLeft.hours)}</div>
-								<div className="timer-label">Godzin</div>
-							</div>
-							<div className="timer-separator">:</div>
-							<div className="timer-box">
-								<div className="timer-number">{formatNumber(timeLeft.minutes)}</div>
-								<div className="timer-label">Minut</div>
-							</div>
-							<div className="timer-separator">:</div>
-							<div className="timer-box">
-								<div className="timer-number">{formatNumber(timeLeft.seconds)}</div>
-								<div className="timer-label">Sekund</div>
-							</div>
-						</div>
-						<p className="subtitle">
-							{target === 'custom'
-								? `do "${customTitle || 'Moje odliczanie'}"`
-								: isEventToday && nextTarget === 'schoolyear'
-								? `do końca wakacji (Rok Szkolny ${targetDateYear})`
-								: target === 'winterholidays'
-								? `do Ferii Zimowych Grupa ${
-										selectedVoivodeship === 'group1'
-											? '1'
-											: selectedVoivodeship === 'group2'
-											? '2'
-											: selectedVoivodeship === 'group3'
-											? '3'
-											: '4'
-								  } ${targetDateYear}r.`
-								: `do ${
-										target === 'newyear'
-											? 'Sylwestra'
-											: target === 'easter'
-											? 'Wielkanocy'
-											: target === 'valentines'
-											? 'Walentynek'
-											: target === 'christmas'
-											? 'Świąt Bożego Narodzenia'
-											: target === 'summer'
-											? 'Wakacji'
-											: target === 'winterbreak'
-											? 'Zimowej Przerwy Świątecznej'
-											: target === 'springbreak'
-											? 'Wiosennej Przerwy Świątecznej'
-											: target === 'endofyear'
-											? 'Końca Roku Szkolnego'
-											: 'Roku Szkolnego'
-								  }`}{' '}
-							{!isEventToday && !['winterholidays', 'winterbreak', 'springbreak', 'endofyear'].includes(target) && (
-								<span className="bold">{targetDateYear}r.</span>
-							)}
-						</p>
+						<TimerDisplay timeLeft={timeLeft} />
+						<EventSubtitle
+							target={target}
+							customTitle={customTitle}
+							isEventToday={isEventToday}
+							nextTarget={nextTarget}
+							targetDateYear={targetDateYear}
+							selectedVoivodeship={selectedVoivodeship}
+						/>
 						{cfg.showSnowman && <div className="snowman">⛄</div>}
 					</>
 				) : (
@@ -581,140 +176,9 @@ function App() {
 				)}
 			</div>
 
-			{cfg.lights && (
-				<div className="lights">
-					{Array.from({ length: 20 }, (_, i) => (
-						<div key={i} className="light" style={{ left: `${i * 5 + 2.5}%`, animationDelay: `${i * 0.1}s` }} />
-					))}
-				</div>
-			)}
+			{cfg.lights && <Lights />}
 		</div>
 	)
-}
-
-function getTargetConfig(target: Target, userTheme: 'light' | 'dark' = 'dark') {
-	switch (target) {
-		case 'christmas':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: true,
-				showSnow: true,
-				showSnowman: true,
-				fireworks: false,
-				lights: true,
-				centerIcon: '🎄',
-			}
-		case 'newyear':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: true,
-				lights: false,
-				centerIcon: '🎆',
-			}
-		case 'easter':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '🥚🎨',
-			}
-		case 'valentines':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '💘💝',
-			}
-		case 'custom':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '✨',
-			}
-		case 'summer':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '☀️',
-			}
-		case 'schoolyear':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '📚',
-			}
-		case 'winterbreak':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: true,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '❄️',
-			}
-		case 'winterholidays':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: true,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '⛷️',
-			}
-		case 'springbreak':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '🌸',
-			}
-		case 'endofyear':
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '📚',
-			}
-		default:
-			return {
-				dark: userTheme === 'dark',
-				showTrees: false,
-				showSnow: false,
-				showSnowman: false,
-				fireworks: false,
-				lights: false,
-				centerIcon: '✨',
-			}
-	}
 }
 
 export default App
