@@ -2,6 +2,8 @@
 
 Interactive web application for counting down to important events with animations and visual effects!
 
+🌐 **Live Demo:** [https://dnapieraj.github.io/event-countdown/](https://dnapieraj.github.io/event-countdown/)
+
 ## 🎯 Features
 
 - ⏰ **Precise countdown**: days, hours, minutes, seconds in real-time
@@ -41,26 +43,6 @@ npm run dev
 
 The app will be available at: `http://localhost:5173`
 
-### Production Build
-
-```bash
-npm run build
-```
-
-### Deploy to GitHub Pages
-
-```bash
-npm run deploy
-```
-
-After deployment, your app will be available at: `https://dnapieraj.github.io/event-countdown/`
-
-**First-time setup:**
-
-1. Push your code to GitHub
-2. Run `npm run deploy`
-3. Go to repository Settings → Pages
-4. Source should be set to `gh-pages` branch
 
 ## 🛠️ Technologies
 
