@@ -47,6 +47,21 @@ The app will be available at: `http://localhost:5173`
 npm run build
 ```
 
+### Deploy to GitHub Pages
+
+```bash
+npm run deploy
+```
+
+After deployment, your app will be available at: `https://dnapieraj.github.io/event-countdown/`
+
+**First-time setup:**
+
+1. Push your code to GitHub
+2. Run `npm run deploy`
+3. Go to repository Settings → Pages
+4. Source should be set to `gh-pages` branch
+
 ## 🛠️ Technologies
 
 - **React 18** – UI library
