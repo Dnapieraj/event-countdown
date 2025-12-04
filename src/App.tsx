@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-type Target = 'christmas' | 'newyear' | 'easter' | 'valentines' | 'custom' | 'summer' | 'schoolyear'
+type Target =
+	| 'christmas'
+	| 'newyear'
+	| 'easter'
+	| 'valentines'
+	| 'custom'
+	| 'summer'
+	| 'schoolyear'
+	| 'winterbreak'
+	| 'winterholidays'
+	| 'springbreak'
+	| 'endofyear'
+
+type Voivodeship = 'group1' | 'group2' | 'group3' | 'group4'
 
 interface TimeLeft {
 	days: number
@@ -25,7 +38,13 @@ const snowflakes = Array.from({ length: 150 }, (_, i) => ({
 	size: 3 + Math.random() * 6,
 }))
 
-const getTargetDate = (now: Date, target: Target, customDate?: string, customTime?: string) => {
+const getTargetDate = (
+	now: Date,
+	target: Target,
+	customDate?: string,
+	customTime?: string,
+	voivodeship?: Voivodeship
+) => {
 	const y = now.getFullYear()
 	const date =
 		target === 'christmas'
@@ -40,6 +59,23 @@ const getTargetDate = (now: Date, target: Target, customDate?: string, customTim
 			? new Date(y, 6, 1)
 			: target === 'schoolyear'
 			? new Date(y, 8, 1)
+			: target === 'winterbreak'
+			? new Date(y, 11, 22)
+			: target === 'springbreak'
+			? new Date(y, 3, 2)
+			: target === 'endofyear'
+			? new Date(y, 5, 26)
+			: target === 'winterholidays'
+			? (() => {
+					// Ferie zimowe 2026 - różne daty dla grup
+					const dates: Record<Voivodeship, Date> = {
+						group1: new Date(y, 0, 19), // 19.01 - 1.02
+						group2: new Date(y, 0, 26), // 26.01 - 8.02
+						group3: new Date(y, 1, 2), // 2.02 - 15.02
+						group4: new Date(y, 1, 9), // 9.02 - 22.02
+					}
+					return dates[voivodeship || 'group1']
+			  })()
 			: customDate
 			? (() => {
 					const [year, month, day] = customDate.split('-').map(Number)
@@ -91,6 +127,8 @@ function App() {
 	const [userTheme, setUserTheme] = useState<'light' | 'dark'>('dark')
 	const [isEventToday, setIsEventToday] = useState(false)
 	const [nextTarget, setNextTarget] = useState<Target | null>(null)
+	const [selectedVoivodeship, setSelectedVoivodeship] = useState<Voivodeship>('group1')
+	const [showVoivodeshipMenu, setShowVoivodeshipMenu] = useState(false)
 
 	useEffect(() => {
 		const checkIfEventIsToday = (now: Date, eventTarget: Target): boolean => {
@@ -104,6 +142,16 @@ function App() {
 				return (month === 6 && day >= 1) || month === 7 || (month === 8 && day <= 31)
 			}
 			if (eventTarget === 'schoolyear') return month === 8 && day === 1
+			if (eventTarget === 'winterbreak') return month === 11 && day >= 22 && day <= 31
+			if (eventTarget === 'springbreak') return month === 3 && day >= 2 && day <= 7
+			if (eventTarget === 'endofyear') return month === 5 && day === 26
+			if (eventTarget === 'winterholidays') {
+				const group1 = month === 0 && day >= 19 && day <= 31 && (month === 0 || (month === 1 && day <= 1))
+				const group2 = month === 0 && day >= 26 && day <= 31 && (month === 0 || (month === 1 && day <= 8))
+				const group3 = month === 1 && day >= 2 && day <= 15
+				const group4 = month === 1 && day >= 9 && day <= 22
+				return group1 || group2 || group3 || group4
+			}
 			return false
 		}
 
@@ -118,7 +166,7 @@ function App() {
 				nextEvent = 'schoolyear'
 			}
 
-			const targetDate = getTargetDate(now, currentTarget, customDate, customTime)
+			const targetDate = getTargetDate(now, currentTarget, customDate, customTime, selectedVoivodeship)
 			const diff = targetDate.getTime() - now.getTime()
 			const isTodayChristmas = now.getMonth() === 11 && now.getDate() === 25
 			const eventIsToday = checkIfEventIsToday(now, target)
@@ -156,7 +204,7 @@ function App() {
 		updateTime()
 		const timer = setInterval(updateTime, 1000)
 		return () => clearInterval(timer)
-	}, [target, customDate, customTime])
+	}, [target, customDate, customTime, selectedVoivodeship])
 
 	const formatNumber = (n: number) => String(n).padStart(2, '0')
 
@@ -178,13 +226,6 @@ function App() {
 		if (customDate) {
 			setShowModal(false)
 		}
-	}
-
-	const handleCloseModal = () => {
-		if (target === 'custom' && !customDate) {
-			return
-		}
-		setShowModal(false)
 	}
 
 	return (
@@ -209,10 +250,14 @@ function App() {
 							<button className="modal-btn" onClick={() => handleSelectEvent('summer')}>
 								☀️ Wakacje
 							</button>
+							<button className="modal-btn" onClick={() => setShowVoivodeshipMenu(!showVoivodeshipMenu)}>
+								❄️ Ferie Szkolne
+							</button>
 							<button className="modal-btn" onClick={() => handleSelectEvent('custom')}>
 								✨ Własny cel
 							</button>
 						</div>
+
 						{target === 'custom' && (
 							<div className="modal-custom">
 								<input
@@ -241,6 +286,120 @@ function App() {
 								</button>
 							</div>
 						)}
+					</div>
+				</div>
+			)}
+
+			{showVoivodeshipMenu && (
+				<div className="voivodeship-menu">
+					<div className="voivodeship-header">
+						<h3 className="voivodeship-title">📅 Przerwy Szkolne</h3>
+						<button className="close-menu-btn" onClick={() => setShowVoivodeshipMenu(false)}>
+							✕
+						</button>
+					</div>
+					<div className="voivodeship-options">
+						<div className="breaks-section">
+							<h4 className="section-title">❄️ Zimowe Przerwy</h4>
+							<button
+								className="voivodeship-btn break-btn"
+								onClick={() => {
+									handleSelectEvent('winterbreak')
+									setShowVoivodeshipMenu(false)
+								}}>
+								<span className="btn-label">Zimowa Przerwa Świąteczna</span>
+								<span className="btn-date">22-31 grudnia 2025</span>
+							</button>
+
+							<div className="holidays-subsection">
+								<h5 className="subsection-title">PRZERWY ZIMOWE 2026</h5>
+								<button
+									className="voivodeship-btn group-btn group-1"
+									onClick={() => {
+										setTarget('winterholidays')
+										setSelectedVoivodeship('group1')
+										setShowVoivodeshipMenu(false)
+										setShowModal(false)
+									}}>
+									<span className="group-number">Grupa 1</span>
+									<span className="group-info">
+										Kujawsko-Pomorskie, Lubuskie, Małopolskie, Świętokrzyskie, Wielkopolskie
+									</span>
+									<span className="group-date">19.01 - 1.02.2026</span>
+								</button>
+								<button
+									className="voivodeship-btn group-btn group-2"
+									onClick={() => {
+										setTarget('winterholidays')
+										setSelectedVoivodeship('group2')
+										setShowVoivodeshipMenu(false)
+										setShowModal(false)
+									}}>
+									<span className="group-number">Grupa 2</span>
+									<span className="group-info">Podlaskie, Warmińsko-Mazurskie</span>
+									<span className="group-date">26.01 - 8.02.2026</span>
+								</button>
+								<button
+									className="voivodeship-btn group-btn group-3"
+									onClick={() => {
+										setTarget('winterholidays')
+										setSelectedVoivodeship('group3')
+										setShowVoivodeshipMenu(false)
+										setShowModal(false)
+									}}>
+									<span className="group-number">Grupa 3</span>
+									<span className="group-info">Dolnośląskie, Mazowieckie, Opolskie, Zachodniopomorskie</span>
+									<span className="group-date">2.02 - 15.02.2026</span>
+								</button>
+								<button
+									className="voivodeship-btn group-btn group-4"
+									onClick={() => {
+										setTarget('winterholidays')
+										setSelectedVoivodeship('group4')
+										setShowVoivodeshipMenu(false)
+										setShowModal(false)
+									}}>
+									<span className="group-number">Grupa 4</span>
+									<span className="group-info">Lubelskie, Łódzkie, Podkarpackie, Pomorskie, Śląskie</span>
+									<span className="group-date">9.02 - 22.02.2026</span>
+								</button>
+							</div>
+						</div>
+
+						<div className="breaks-section">
+							<h4 className="section-title">🌸 Wiosenne Przerwy</h4>
+							<button
+								className="voivodeship-btn break-btn"
+								onClick={() => {
+									handleSelectEvent('springbreak')
+									setShowVoivodeshipMenu(false)
+								}}>
+								<span className="btn-label">Wiosenna Przerwa Świąteczna</span>
+								<span className="btn-date">2-7 kwietnia 2026</span>
+							</button>
+						</div>
+
+						<div className="breaks-section">
+							<h4 className="section-title">📚 Rok Szkolny</h4>
+							<button
+								className="voivodeship-btn break-btn"
+								onClick={() => {
+									handleSelectEvent('endofyear')
+									setShowVoivodeshipMenu(false)
+								}}>
+								<span className="btn-label">Koniec Roku Szkolnego</span>
+								<span className="btn-date">26 czerwca 2026</span>
+							</button>
+							<button
+								className="voivodeship-btn break-btn"
+								onClick={() => {
+									handleSelectEvent('summer')
+									setShowVoivodeshipMenu(false)
+								}}>
+								<span className="btn-label">Koniec Wakacji Letnich</span>
+								<span className="btn-date">1 września 2026</span>
+							</button>
+						</div>
 					</div>
 				</div>
 			)}
@@ -332,6 +491,22 @@ function App() {
 							: '☀️ Odliczanie do Wakacji 🏖️'
 						: target === 'schoolyear'
 						? '📚 Odliczanie do Roku Szkolnego 🎒'
+						: target === 'winterbreak'
+						? '❄️ Odliczanie do Zimowej Przerwy Świątecznej ❄️'
+						: target === 'winterholidays'
+						? `⛷️ Odliczanie do Ferii Zimowych Grupa ${
+								selectedVoivodeship === 'group1'
+									? '1'
+									: selectedVoivodeship === 'group2'
+									? '2'
+									: selectedVoivodeship === 'group3'
+									? '3'
+									: '4'
+						  } ⛷️`
+						: target === 'springbreak'
+						? '🌸 Odliczanie do Wiosennej Przerwy Świątecznej 🌸'
+						: target === 'endofyear'
+						? '📚 Odliczanie do Końca Roku Szkolnego 📚'
 						: '✨ Odliczanie ✨'}
 				</h1>
 
@@ -363,6 +538,16 @@ function App() {
 								? `do "${customTitle || 'Moje odliczanie'}"`
 								: isEventToday && nextTarget === 'schoolyear'
 								? `do końca wakacji (Rok Szkolny ${targetDateYear})`
+								: target === 'winterholidays'
+								? `do Ferii Zimowych Grupa ${
+										selectedVoivodeship === 'group1'
+											? '1'
+											: selectedVoivodeship === 'group2'
+											? '2'
+											: selectedVoivodeship === 'group3'
+											? '3'
+											: '4'
+								  } ${targetDateYear}r.`
 								: `do ${
 										target === 'newyear'
 											? 'Sylwestra'
@@ -374,9 +559,17 @@ function App() {
 											? 'Świąt Bożego Narodzenia'
 											: target === 'summer'
 											? 'Wakacji'
+											: target === 'winterbreak'
+											? 'Zimowej Przerwy Świątecznej'
+											: target === 'springbreak'
+											? 'Wiosennej Przerwy Świątecznej'
+											: target === 'endofyear'
+											? 'Końca Roku Szkolnego'
 											: 'Roku Szkolnego'
 								  }`}{' '}
-							{!isEventToday && <span className="bold">{targetDateYear}r.</span>}
+							{!isEventToday && !['winterholidays', 'winterbreak', 'springbreak', 'endofyear'].includes(target) && (
+								<span className="bold">{targetDateYear}r.</span>
+							)}
 						</p>
 						{cfg.showSnowman && <div className="snowman">⛄</div>}
 					</>
@@ -462,6 +655,46 @@ function getTargetConfig(target: Target, userTheme: 'light' | 'dark' = 'dark') {
 				centerIcon: '☀️',
 			}
 		case 'schoolyear':
+			return {
+				dark: userTheme === 'dark',
+				showTrees: false,
+				showSnow: false,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '📚',
+			}
+		case 'winterbreak':
+			return {
+				dark: userTheme === 'dark',
+				showTrees: false,
+				showSnow: true,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '❄️',
+			}
+		case 'winterholidays':
+			return {
+				dark: userTheme === 'dark',
+				showTrees: false,
+				showSnow: true,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '⛷️',
+			}
+		case 'springbreak':
+			return {
+				dark: userTheme === 'dark',
+				showTrees: false,
+				showSnow: false,
+				showSnowman: false,
+				fireworks: false,
+				lights: false,
+				centerIcon: '🌸',
+			}
+		case 'endofyear':
 			return {
 				dark: userTheme === 'dark',
 				showTrees: false,
